@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+out/*.jsonl
+out/*.log
+samples/*.db
+samples/*.pdf
+samples/*.png
+samples/*.jpg
+samples/*.jpeg
+samples/ground_truth.json
+.DS_Store
