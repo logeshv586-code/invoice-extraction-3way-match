@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "invoice-extraction-3way-match"
-version = "0.1.0"
+version = "0.2.0"
 description = "Purchase invoice extraction, GST validation and deterministic 3-way matching"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9"]
+postgres = ["psycopg[binary]>=3.2,<4"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
