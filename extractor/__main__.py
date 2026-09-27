@@ -44,6 +44,13 @@ def cmd_eval(args) -> int:
     return 0
 
 
+def cmd_server(args) -> int:
+    from .server import run_server
+    print(f"Starting unified backend server on http://{args.host}:{args.port}")
+    run_server(host=args.host, port=args.port)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m extractor")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -66,6 +73,11 @@ def main() -> int:
     e = sub.add_parser("eval", help="Process folder and compare with ground_truth.json")
     e.add_argument("folder")
     e.set_defaults(func=cmd_eval)
+
+    s = sub.add_parser("server", help="Start unified backend server on port 8010 with web UI and API")
+    s.add_argument("--host", default="0.0.0.0", help="Host interface (default 0.0.0.0)")
+    s.add_argument("--port", type=int, default=8010, help="Port to listen on (default 8010)")
+    s.set_defaults(func=cmd_server)
 
     args = parser.parse_args()
     return args.func(args)

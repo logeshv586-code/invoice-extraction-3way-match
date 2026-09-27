@@ -13,3 +13,5 @@ samples/*.jpg
 samples/*.jpeg
 samples/ground_truth.json
 .DS_Store
+*.gguf
+Qwen3-VL-4B-Instruct-GGUF/

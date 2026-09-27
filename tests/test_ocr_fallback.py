@@ -75,3 +75,57 @@ def test_multiple_images_preserve_page_evidence_and_flag_vendor_gstin_conflict(t
     assert {segment.source for segment in result.segments} == {"page1.jpg", "page2.jpg"}
     assert result.warnings
     assert result.warnings[0][0] == "CROSS_PAGE_VENDOR_GSTIN_CONFLICT"
+
+
+def test_gguf_vision_is_used_when_unlimited_and_lmstudio_fail(tmp_path, monkeypatch):
+    image = tmp_path / "invoice.jpg"
+    image.write_bytes(b"dummy")
+
+    def fake_post(url, **kwargs):
+        raise requests.ConnectionError("server unavailable")
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    # Mock _direct_gguf_vision on DocumentReader
+    monkeypatch.setattr(
+        DocumentReader,
+        "_direct_gguf_vision",
+        lambda self, images: "TAX INVOICE Vendor GSTIN 27AAACR5055K1Z7 Invoice INV-100 PO PO-1 Grand Total 1180.00",
+    )
+
+    settings = Settings(
+        ocr_mode="unlimited_ocr_http",
+        ocr_min_text_chars=20,
+        lmstudio_vision_fallback=True,
+        gguf_vision_fallback=True,
+    )
+    result = DocumentReader(settings).read(image)
+    assert result.provider == "gguf/qwen3-vl-4b-instruct"
+    assert "INV-100" in result.text
+
+
+def test_rapidocr_is_used_when_vision_models_fail(tmp_path, monkeypatch):
+    image = tmp_path / "invoice.jpg"
+    image.write_bytes(b"dummy")
+
+    def fake_post(url, **kwargs):
+        raise requests.ConnectionError("server unavailable")
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr(
+        DocumentReader,
+        "_rapid_ocr",
+        lambda self, img: "TAX INVOICE Vendor GSTIN 27AAACR5055K1Z7 Invoice INV-100 PO PO-1 Grand Total 1180.00",
+    )
+
+    settings = Settings(
+        ocr_mode="unlimited_ocr_http",
+        ocr_min_text_chars=20,
+        lmstudio_vision_fallback=False,
+        gguf_vision_fallback=False,
+        rapidocr_fallback=True,
+    )
+    result = DocumentReader(settings).read(image)
+    assert result.provider == "rapidocr"
+    assert "INV-100" in result.text
+

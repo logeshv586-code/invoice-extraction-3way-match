@@ -95,6 +95,22 @@ samples/
 
 The supplied sample documents/database are ignored by Git so private assessment data is not accidentally committed.
 
+## Unified Backend Server (All-in-One on Port 8010)
+
+Launch the complete backend server with a single command:
+
+```powershell
+python -m extractor server --port 8010
+```
+
+This starts:
+1. **Interactive Web Dashboard**: Open [http://localhost:8010/](http://localhost:8010/) in your browser to drag & drop invoices or paste text, view OCR transcription, and inspect 3-way match decisions live.
+2. **File Processing API**: `POST /api/process` for uploading PDFs/images.
+3. **Direct Text Processing API**: `POST /api/process-text` for raw text input.
+4. **OpenAI-Compatible OCR Endpoint**: `POST /v1/chat/completions` supporting local GGUF vision and structuring.
+5. **System Health & Status**: `GET /api/status`.
+
+
 ## Unlimited-OCR setup
 
 The official Unlimited-OCR repository supports OpenAI-compatible serving using SGLang/vLLM. Start its server according to the official GPU/CUDA instructions, then configure:
@@ -113,25 +129,39 @@ POST /v1/chat/completions
 
 For a normal text PDF, this OCR service is not required because PyMuPDF extracts the embedded text directly.
 
-## Local LM Studio vision fallback
+## Local Vision Fallback (Direct GGUF or LM Studio)
 
-Use a **vision-capable** local model when OCR fails. A text-only T5/GGUF cannot read invoice images.
+When primary visual OCR fails or returns unusable text, the pipeline falls back to local vision models:
 
-Recommended small default:
+### 1. Direct in-process GGUF VLM (`Qwen3-VL 4B Instruct`)
+If you have the GGUF files in `Qwen3-VL-4B-Instruct-GGUF/`, the pipeline automatically uses `llama-cpp-python` to transcribe the document in-process without needing any external server:
 
-```text
-Qwen3-VL 4B Instruct GGUF
+```env
+GGUF_VISION_FALLBACK=true
+GGUF_MODEL_PATH=Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q4_K_M.gguf
+GGUF_MMPROJ_PATH=Qwen3-VL-4B-Instruct-GGUF/mmproj-Qwen3-VL-4B-Instruct-F16.gguf
+GGUF_N_CTX=2048
+GGUF_N_GPU_LAYERS=0
 ```
 
-Start LM Studio's local server and set:
+### 2. LM Studio Server
+Alternatively, if you run LM Studio's local server:
 
 ```env
 LM_STUDIO_VISION_FALLBACK=true
 LM_STUDIO_URL=http://127.0.0.1:1234/v1
-LM_STUDIO_VISION_MODEL=<exact model id shown in LM Studio>
+LM_STUDIO_VISION_MODEL=qwen3-vl-4b-instruct
 ```
 
-The local VLM only transcribes/extracts. It does not validate GST, compare PO/GRN data, or decide approval.
+### 3. RapidOCR Local Engine
+RapidOCR runs onnx-based OCR locally in-process:
+
+```env
+RAPIDOCR_FALLBACK=true
+```
+
+The local VLM and OCR only transcribe/extract text. They do not validate GST, compare PO/GRN data, or decide approval.
+
 
 ## Database mode
 
@@ -163,9 +193,17 @@ The PostgreSQL schema is expected to match the assessment tables.
 STRUCTURING_MODE=heuristic
 ```
 
-This is deliberately conservative. It extracts obvious fields but gives difficult fields low confidence, normally producing `NEEDS_REVIEW` instead of unsafe guesses.
+This parses structured headers and line items from text.
 
-### Recommended for actual assessment evaluation
+### Direct local GGUF structuring
+
+```env
+STRUCTURING_MODE=gguf
+```
+
+Uses the local `Qwen3-VL-4B-Instruct-GGUF` model via `llama-cpp-python` to structure text into JSON schema locally with zero API keys.
+
+### Recommended for OpenAI-compatible endpoint (LM Studio / hosted)
 
 Point the application to any OpenAI-compatible local or hosted instruction model:
 

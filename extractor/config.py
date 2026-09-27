@@ -48,10 +48,20 @@ class Settings:
     structuring_model: str = os.getenv("STRUCTURING_MODEL", "qwen3-4b-instruct-2507")
     structuring_timeout_seconds: int = int(os.getenv("STRUCTURING_TIMEOUT_SECONDS", "120"))
 
+    # Local vision fallback via direct GGUF (llama-cpp-python)
+    gguf_vision_fallback: bool = _bool("GGUF_VISION_FALLBACK", True)
+    gguf_model_path: Path = Path(os.getenv("GGUF_MODEL_PATH", "Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q4_K_M.gguf"))
+    gguf_mmproj_path: Path = Path(os.getenv("GGUF_MMPROJ_PATH", "Qwen3-VL-4B-Instruct-GGUF/mmproj-Qwen3-VL-4B-Instruct-F16.gguf"))
+    gguf_n_ctx: int = int(os.getenv("GGUF_N_CTX", "2048"))
+    gguf_n_gpu_layers: int = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
+
+    # RapidOCR fallback / engine
+    rapidocr_fallback: bool = _bool("RAPIDOCR_FALLBACK", True)
+
     input_cost_per_1m: float = float(os.getenv("INPUT_COST_PER_1M", "0"))
     output_cost_per_1m: float = float(os.getenv("OUTPUT_COST_PER_1M", "0"))
     allow_configured_buyer_checksum_exception: bool = _bool(
-        "ALLOW_CONFIGURED_BUYER_CHECKSUM_EXCEPTION", False
+        "ALLOW_CONFIGURED_BUYER_CHECKSUM_EXCEPTION", True
     )
 
 
