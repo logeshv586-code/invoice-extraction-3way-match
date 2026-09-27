@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 from .config import Settings, settings as default_settings
-from .db import ERPRepository
+from .db import build_erp_repository
 from .models import InvoiceExtraction, ProcessResult, Reason, RunMetrics
 from .ocr import DocumentReader
 from .structuring import InvoiceStructurer
@@ -17,17 +17,22 @@ class InvoicePipeline:
         self.settings = settings
         self.reader = DocumentReader(settings)
         self.structurer = InvoiceStructurer(settings)
-        self.db = ERPRepository(settings.erp_db)
+        self.db = build_erp_repository(settings)
 
-    def process(self, path: str | Path) -> ProcessResult:
-        path = Path(path)
+    def process(self, paths: str | Path | list[str | Path]) -> ProcessResult:
+        path_list = [paths] if isinstance(paths, (str, Path)) else list(paths)
+        if not path_list:
+            raise ValueError("At least one invoice document/page is required")
+        resolved = [Path(p) for p in path_list]
+        document_name = resolved[0].name if len(resolved) == 1 else " + ".join(p.name for p in resolved)
+
         started = time.perf_counter()
         reader_name = ""
         structuring_model = ""
         tokens_in = tokens_out = retries = 0
 
         try:
-            ocr = self.reader.read(path)
+            ocr = self.reader.read_many(resolved)
             reader_name = ocr.provider
             structured = self.structurer.structure(ocr.text)
             extraction = structured.extraction
@@ -35,7 +40,12 @@ class InvoicePipeline:
             tokens_in = structured.tokens_in
             tokens_out = structured.tokens_out
             retries = structured.retries
-            reasons = validate_invoice(extraction, self.db, self.settings)
+
+            reasons = [
+                Reason(code=code, message=message) for code, message in ocr.warnings
+            ]
+            reasons.extend(validate_invoice(extraction, self.db, self.settings))
+
             if not extraction.is_invoice:
                 decision = "REJECTED"
             elif reasons:
@@ -53,7 +63,7 @@ class InvoicePipeline:
             + tokens_out * self.settings.output_cost_per_1m / 1_000_000
         )
         result = ProcessResult(
-            document=path.name,
+            document=document_name,
             extraction=extraction,
             decision=decision,
             reasons=reasons,
