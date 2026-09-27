@@ -14,7 +14,7 @@ def _documents(folder: Path):
 
 
 def cmd_process(args) -> int:
-    result = InvoicePipeline().process(args.document)
+    result = InvoicePipeline().process(args.documents)
     print(result.model_dump_json(indent=2))
     return 0
 
@@ -48,11 +48,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m extractor")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("process", help="Process one invoice/document")
-    p.add_argument("document")
+    p = sub.add_parser(
+        "process",
+        help="Process one file, or multiple image/PDF pages that belong to the same invoice",
+    )
+    p.add_argument(
+        "documents",
+        nargs="+",
+        help="One invoice file, or multiple page files in invoice order",
+    )
     p.set_defaults(func=cmd_process)
 
-    b = sub.add_parser("batch", help="Process all supported documents in a folder")
+    b = sub.add_parser("batch", help="Process all supported documents in a folder as separate invoices")
     b.add_argument("folder")
     b.set_defaults(func=cmd_batch)
 
